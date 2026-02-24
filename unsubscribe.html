@@ -48,57 +48,35 @@
     </div>
 
     <script>
-        // Credentials Supabase — remplacez par vos valeurs
-        // (la clé anon est publique, c'est normal)
-        const SUPABASE_URL = "https://VOTRE-PROJET.supabase.co";
+        const SUPABASE_URL      = "https://VOTRE-PROJET.supabase.co";
         const SUPABASE_ANON_KEY = "VOTRE_ANON_KEY";
 
-        // Fix : extraire createClient avant de nommer la variable client
         const { createClient } = window.supabase;
-        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         function setContent(icon, title, message) {
-            document.getElementById('content').innerHTML = `
-                <div class="icon">${icon}</div>
-                <h1>${title}</h1>
-                <p>${message}</p>
-            `;
-        }
-
-        function isValidEmail(email) {
-            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            document.getElementById('content').innerHTML =
+                `<div class="icon">${icon}</div><h1>${title}</h1><p>${message}</p>`;
         }
 
         async function processUnsubscribe() {
-            const params = new URLSearchParams(window.location.search);
-            const email = params.get('email');
+            const token = new URLSearchParams(window.location.search).get('e');
 
-            if (!email || !isValidEmail(email)) {
-                setContent('❌', 'Lien invalide', 'Ce lien de désabonnement est invalide ou incomplet.');
+            if (!token) {
+                setContent('❌', 'Lien invalide', 'Ce lien de désabonnement est invalide.');
                 return;
             }
 
-            // Vérifier si déjà désabonné (idempotent)
-            const { data: existing } = await supabaseClient
+            // Insertion directe — pas de validation, c'est l'application locale qui gère
+            const { error } = await db
                 .from('unsubscribes')
-                .select('email')
-                .eq('email', email)
-                .maybeSingle();
-
-            if (existing) {
-                setContent('✓', 'Déjà désabonné', `L'adresse <strong>${email}</strong> est déjà enregistrée pour le désabonnement.`);
-                return;
-            }
-
-            const { error } = await supabaseClient
-                .from('unsubscribes')
-                .insert([{ email }]);
+                .insert([{ email: token }]);
 
             if (error) {
                 console.error(error);
-                setContent('⚠️', 'Erreur', 'Une erreur est survenue. Veuillez réessayer ou contacter le support.');
+                setContent('⚠️', 'Erreur', 'Une erreur est survenue. Veuillez réessayer.');
             } else {
-                setContent('✓', 'Désabonné avec succès', `L'adresse <strong>${email}</strong> ne recevra plus nos emails.`);
+                setContent('✓', 'Désabonné avec succès', 'Vous ne recevrez plus nos emails.');
             }
         }
 
