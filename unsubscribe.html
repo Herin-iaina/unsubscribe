@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Désabonnement</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'DM Sans', Arial, sans-serif;
+            background: #f7f5f0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 48px 40px;
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+        }
+        .icon { font-size: 40px; margin-bottom: 16px; }
+        h1 { font-size: 20px; font-weight: 600; color: #1a1a1a; margin-bottom: 8px; }
+        p  { font-size: 14px; color: #888; line-height: 1.6; }
+        .spinner {
+            width: 32px; height: 32px;
+            border: 3px solid #e0dbd4;
+            border-top-color: #1a1a1a;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div id="content">
+            <div class="spinner"></div>
+            <p>Traitement en cours…</p>
+        </div>
+    </div>
+
+    <script>
+        // Credentials Supabase — remplacez par vos valeurs
+        // (la clé anon est publique, c'est normal)
+        const SUPABASE_URL = "https://VOTRE-PROJET.supabase.co";
+        const SUPABASE_ANON_KEY = "VOTRE_ANON_KEY";
+
+        // Fix : extraire createClient avant de nommer la variable client
+        const { createClient } = window.supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function setContent(icon, title, message) {
+            document.getElementById('content').innerHTML = `
+                <div class="icon">${icon}</div>
+                <h1>${title}</h1>
+                <p>${message}</p>
+            `;
+        }
+
+        function isValidEmail(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+
+        async function processUnsubscribe() {
+            const params = new URLSearchParams(window.location.search);
+            const email = params.get('email');
+
+            if (!email || !isValidEmail(email)) {
+                setContent('❌', 'Lien invalide', 'Ce lien de désabonnement est invalide ou incomplet.');
+                return;
+            }
+
+            // Vérifier si déjà désabonné (idempotent)
+            const { data: existing } = await supabaseClient
+                .from('unsubscribes')
+                .select('email')
+                .eq('email', email)
+                .maybeSingle();
+
+            if (existing) {
+                setContent('✓', 'Déjà désabonné', `L'adresse <strong>${email}</strong> est déjà enregistrée pour le désabonnement.`);
+                return;
+            }
+
+            const { error } = await supabaseClient
+                .from('unsubscribes')
+                .insert([{ email }]);
+
+            if (error) {
+                console.error(error);
+                setContent('⚠️', 'Erreur', 'Une erreur est survenue. Veuillez réessayer ou contacter le support.');
+            } else {
+                setContent('✓', 'Désabonné avec succès', `L'adresse <strong>${email}</strong> ne recevra plus nos emails.`);
+            }
+        }
+
+        processUnsubscribe();
+    </script>
+</body>
+</html>
